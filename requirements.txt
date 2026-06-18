@@ -1,0 +1,7 @@
+ipython==8.31.0
+jupyter
+matplotlib==3.9.2
+numpy==1.26.4
+pandas==2.2.2
+scienceplots
+scipy==1.14.1

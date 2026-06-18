@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+
+# Public-repo exclusions
+*.pdf
+
+# Local generated data artifacts
+*.pkl
+*.npz
+*.xlsx

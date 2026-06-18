@@ -1,0 +1,92 @@
+# Two-Step Nucleation × Phase Field (Fe)
+
+Numerical study of **two-step nucleation** in solid-state Fe (FCC → amorphous → BCC, 160 K),
+coupling a Turnbull–Fisher / Kashchiev composite-cluster master equation to a multi-phase-field
+growth model. The nucleation engine computes stationary nucleation rates, induction times, and the
+full cluster population distribution; these parameters then drive an Allen–Cahn phase-field
+simulation of real-space growth and competition.
+
+## Background
+
+Classical nucleation theory (CNT) treats nucleation as a 1D problem in cluster size. **Two-step (2S)
+nucleation** generalizes this: crystals need not nucleate directly in the parent phase but may form
+inside a precursory **metastable (intermediate) phase**. Following Kashchiev's composite-cluster
+model, a cluster is described by two sizes (i, n) — total metastable monomers `i` and the
+crystalline monomers `n` inside it (1 ≤ n ≤ i) — turning nucleation into a 2D problem on a
+triangular state space.
+
+## Pipeline
+
+1. **Nucleation engine** — Kashchiev 2D composite-cluster master equation with **Turnbull–Fisher**
+   attachment frequencies (Ω = 24D/λ²) for solid-state kinetics. Integrated over time to obtain the
+   cluster population distribution and to extract `J_d`, `J_com`, `J_c`, `θ_d`, `θ_com`, critical
+   sizes, and supersaturations.
+   → `notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb`
+2. **Phase-field coupling** — the extracted rates/times drive a multi-Allen–Cahn model via Simmons
+   explicit seeding, `P = 1 − exp(−J·ΔV·Δt)`. A two-gate mask (`t > θ_com` **and** inside the
+   amorphous phase) enforces the 2S pathway: crystal nucleates only inside the metastable phase.
+   → `notebooks/02_phase_field_coupling_Fe.ipynb`
+
+## Repository structure
+
+```
+.
+├── README.md
+├── requirements.txt
+├── notebooks/
+│   ├── 01_two_step_nucleation_turnbull_fisher_Fe.ipynb
+│   ├── 02_phase_field_coupling_Fe.ipynb
+│   └── extras/
+│       ├── Fe_phase_field_freevolume.ipynb
+│       ├── misc_code/
+│       └── previous/
+└── docs/
+    └── theory_reference.md      # full theory & formula reference
+```
+
+## Extras
+
+Ancillary notebooks and scripts copied from the local working folder are kept under
+`notebooks/extras/`: free-volume phase-field variants, earlier master-equation drafts, test
+notebooks, literature-summary notebooks, and the surface-mismatch utility script.
+
+## Installation
+
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+jupyter lab
+```
+
+## Usage
+
+Run the notebooks in order. `01_...` produces the nucleation rates and the cluster population
+distribution; `02_...` consumes those parameters for the phase-field simulation. See
+`docs/theory_reference.md` for the complete derivation and the meaning of every parameter.
+
+## Key results (Fe, 160 K)
+
+| Quantity | Value | Meaning |
+|---|---|---|
+| J_d   | 4.31×10³⁵ m⁻³s⁻¹ | amorphous nucleation (parent → amorphous) |
+| J_com | 5.27×10³¹ m⁻³s⁻¹ | crystal inside amorphous (2S pathway) |
+| J_c   | 1.97×10¹⁶ m⁻³s⁻¹ | direct crystal in parent (~10¹⁹× smaller, negligible) |
+| θ_d   | 1.71×10⁻⁵ s | amorphous induction time |
+| θ_com | 1.39×10⁻⁴ s | crystal-in-amorphous induction time |
+
+Because `J_d / J_com ≈ 8200` (not 10¹⁹), crystals appear in statistically meaningful numbers inside
+the amorphous phase — a textbook Ostwald-step / two-step sequence rather than direct
+crystallization.
+
+## Theory & references
+
+Full derivation and formulas: [`docs/theory_reference.md`](docs/theory_reference.md).
+
+- K. F. Kelton, A. L. Greer, *Nucleation in Condensed Matter: Applications in Materials and Biology*, Pergamon (2010), Ch. 2 (Classical Nucleation Theory).
+- D. Kashchiev, "Classical nucleation theory approach to two-step nucleation of crystals," *Journal of Crystal Growth* **530**, 125300 (2020).
+- J. P. Simmons, C. Shen, Y. Wang, "Phase Field Approach to Transformations Involving Concurrent Nucleation and Growth," *MRS Symp. Proc.* **580** (2000) 417.
+
+## License
+
+(Choose a license — e.g. MIT — or remove this section.)
