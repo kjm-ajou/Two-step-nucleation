@@ -1,0 +1,22 @@
+file,source_notebook,source_cell,output_index,mime,dimensions,section,group
+figures/01_nucleation_engine/cell_15_fig_01.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,15,1,image/png,1115x795,7. Nucleation Rate And Induction Plots,Nucleation engine
+figures/01_nucleation_engine/cell_15_fig_02.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,15,2,image/png,1019x759,7. Nucleation Rate And Induction Plots,Nucleation engine
+figures/01_nucleation_engine/cell_15_fig_03.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,15,3,image/png,1057x759,7. Nucleation Rate And Induction Plots,Nucleation engine
+figures/01_nucleation_engine/cell_15_fig_04.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,15,4,image/png,1105x795,7. Nucleation Rate And Induction Plots,Nucleation engine
+figures/01_nucleation_engine/cell_15_fig_05.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,15,5,image/png,1036x781,7. Nucleation Rate And Induction Plots,Nucleation engine
+figures/01_nucleation_engine/cell_15_fig_06.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,15,6,image/png,1143x760,7. Nucleation Rate And Induction Plots,Nucleation engine
+figures/01_nucleation_engine/cell_17_fig_07.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,17,1,image/png,1088x926,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_17_fig_08.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,17,2,image/png,2154x1381,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_18_fig_09.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,18,2,image/png,2202x884,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_19_fig_10.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,19,1,image/png,1128x870,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_19_fig_11.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,19,2,image/png,1087x932,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_19_fig_12.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,19,3,image/png,1618x849,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_19_fig_13.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,19,4,image/png,2106x1332,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_19_fig_14.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,19,5,image/png,1200x882,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_19_fig_15.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,19,6,image/png,1694x983,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_20_fig_16.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,20,2,image/png,1287x1074,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_21_fig_17.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,21,1,image/png,1624x855,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/01_nucleation_engine/cell_22_fig_18.png,notebooks/01_two_step_nucleation_turnbull_fisher_Fe.ipynb,22,1,image/png,1407x1026,8. Work Of Formation And Concentration Maps,Nucleation engine
+figures/02_phase_field_coupling/cell_05_fig_01.png,notebooks/02_phase_field_coupling_Fe.ipynb,5,2,image/png,828x309,3. 검증 1 — 평형 계면이 tanh 폭을 주는가,Phase-field coupling
+figures/02_phase_field_coupling/cell_11_fig_02.png,notebooks/02_phase_field_coupling_Fe.ipynb,11,2,image/png,1151x326,6. 공간상관 랜덤장 $s(\mathbf r)$ 와 $J(s)$,Phase-field coupling
+figures/02_phase_field_coupling/cell_17_fig_03.png,notebooks/02_phase_field_coupling_Fe.ipynb,17,1,image/png,1489x636,7.1 시간 진행 스냅샷 + 최종 상분포 + s(r) 상관,Phase-field coupling
