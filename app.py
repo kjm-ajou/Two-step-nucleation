@@ -46,15 +46,15 @@ with st.form("inputs"):
     anchors = st.data_editor(L.DEFAULT_ANCHORS, num_rows="dynamic", key="anchors")
 
     st.subheader("3. Run settings")
-    c2 = st.columns(4)
+    c2 = st.columns(3)
     T_iso = c2[0].number_input("Isothermal T (K)", value=160.0, min_value=1.0)
-    do_quench = c2[1].checkbox("Also run a quench", value=True)
-    T_hot = c2[2].number_input("Quench from (K)", value=200.0, min_value=1.0)
-    T_cold = c2[3].number_input("Quench to (K)", value=160.0, min_value=1.0)
-    c3 = st.columns(2)
-    total_time = c3[0].number_input("Quench duration (s)", value=1e-2, min_value=0.0, format="%.4g")
-    n_seg = int(c3[1].number_input("Quench segments (more = slower, finer)", value=15,
-                                   min_value=2, max_value=200, step=1))
+    hist_time = c2[1].number_input("Population-histogram time (s)", value=5e-6, min_value=0.0, format="%.2e")
+    do_quench = c2[2].checkbox("Also run a quench", value=True)
+    c3 = st.columns(4)
+    T_hot = c3[0].number_input("Quench from (K)", value=200.0, min_value=1.0)
+    T_cold = c3[1].number_input("Quench to (K)", value=160.0, min_value=1.0)
+    total_time = c3[2].number_input("Quench duration (s)", value=1e-2, min_value=0.0, format="%.4g")
+    n_seg = int(c3[3].number_input("Quench segments", value=15, min_value=2, max_value=200, step=1))
 
     submitted = st.form_submit_button("Run", type="primary")
 
@@ -98,14 +98,21 @@ else:
 # ---- isothermal ----
 st.subheader(f"Isothermal results at {T_iso:.0f} K")
 with st.spinner("Solving the master equation (isothermal)…"):
-    rates, crit, fig_iso = L.run_isothermal(user, T_iso)
+    rates, crit, I = L.run_isothermal(user, T_iso)
 m = st.columns(3)
 m[0].metric("J_d  (amorphous)", f"{rates['J_d']:.3e}")
 m[1].metric("J_com  (crystal in amorphous, 2S)", f"{rates['J_com']:.3e}")
 m[2].metric("J_c  (direct crystal)", f"{rates['J_c']:.3e}")
 st.caption(f"rates in m⁻³ s⁻¹ · critical sizes  i*={crit['i_star']},  n*={crit['n_star']},  i_co*={crit['i_co_star']}")
-st.pyplot(fig_iso)
-plt.close(fig_iso)
+
+figs = L.figures_isothermal(I, user["element"], hist_time_s=hist_time)
+st.pyplot(figs["rates"]); plt.close(figs["rates"])
+st.markdown("**Nucleation work surface** — the 2D landscape; the two-step path skirts the high direct-crystal barrier.")
+st.pyplot(figs["work"]); plt.close(figs["work"])
+st.markdown("**Cluster population** — metastable-size ($N_i$) vs crystal-size ($N_n$) marginals at the chosen time.")
+st.pyplot(figs["hist"]); plt.close(figs["hist"])
+st.markdown("**Crystal cluster-size distribution over time** — builds toward steady state; $n^*$ marked.")
+st.pyplot(figs["marginal"]); plt.close(figs["marginal"])
 
 # ---- non-isothermal ----
 if do_quench:

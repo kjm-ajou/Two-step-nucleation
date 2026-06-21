@@ -108,9 +108,18 @@ def run_isothermal(user, T_iso):
     params_at, _ = gs.build_param_model(user)
     c1 = 1.0 / user["atomic_volume_m3"]
     I = gs.iso_run(params_at, float(T_iso), t_end=1e-2, n_time=70, atol=c1 * 1e-18)
-    fig = gp.plot_iso(I, user["max_size"], element=user["element"])
     rates = {k: float(I["stat_rates"][k]) for k in ("J_d", "J_com", "J_c")}
-    return rates, dict(I["crit"]), fig
+    return rates, dict(I["crit"]), I
+
+
+def figures_isothermal(I, element, hist_time_s=5e-6):
+    """Build the cluster-population figures from an isothermal solution I."""
+    return {
+        "rates": gp.plot_rates_and_densities(I, element=element),
+        "work": gp.plot_work_surface(I, element=element),
+        "hist": gp.plot_population_histograms(I, t_target=float(hist_time_s), element=element),
+        "marginal": gp.plot_crystal_marginal_timeseries(I, element=element),
+    }
 
 
 def run_quench(user, T_hot, T_cold, total_time_s, n_seg):

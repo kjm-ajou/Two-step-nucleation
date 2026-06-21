@@ -1,105 +1,141 @@
-"""Plotting helpers for the general unary-metal two-step nucleation notebook."""
+"""Plotting helpers for the unary-metal two-step nucleation app/notebook.
+
+Isothermal output (cluster-population focused):
+  plot_rates_and_densities  - (a) nucleation rates, (b) cumulative number density
+  plot_work_surface         - nucleation work surface contour (with i*, n*, i_co*, n=i)
+  plot_population_histograms - overlaid metastable-size N_i and crystal-size N_n at a time
+  plot_crystal_marginal_timeseries - crystal-size marginal vs n at several times (time colorbar)
+Non-isothermal output:
+  plot_noniso               - quench J(t)/J(T) with instantaneous-stationary comparison
+"""
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.patheffects as pe
+from matplotlib.colors import LogNorm
 import model_core as mc  # in the notebook this is rebound to sys.modules['__main__']
 
 
-def _crystal_marginal(c_flat, pairs, max_size):
-    """sum over i of c(i,n) for each crystal size n."""
-    m = np.zeros(max_size + 2)
-    np.add.at(m, pairs[:, 1], c_flat)
-    return m
+def _marg_i(c, pairs, M):
+    m = np.zeros(M + 2); np.add.at(m, pairs[:, 0], c); return m  # N_i = sum_n c(i,n)
 
 
-def plot_iso(I, max_size, element=""):
-    pairs, w, c1, sco, params = I["pairs"], I["w"], I["c1"], I["s_co"], I["params"]
-    y, t, crit = I["y"], I["time_s"], I["crit"]
-    fig = plt.figure(figsize=(14.5, 8.4))
-    fig.suptitle(f"Isothermal two-step nucleation — {element}  (T = {params.temperature_K:.0f} K)",
-                 fontsize=13, y=0.99)
+def _marg_n(c, pairs, M):
+    m = np.zeros(M + 2); np.add.at(m, pairs[:, 1], c); return m  # N_n = sum_i c(i,n)
 
-    # (a) rates vs time
-    ax = fig.add_subplot(2, 3, 1)
+
+def plot_rates_and_densities(I, element=""):
+    t = I["time_s"]
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(13, 4.6))
     for nm, col in [("J_d", "#1f77b4"), ("J_com", "#d62728"), ("J_c", "#2ca02c")]:
-        ax.loglog(t[1:], np.maximum(I["rates_t"][nm][1:], 1e-300), color=col, lw=1.8, label=nm)
-    ax.set_xlabel("time (s)"); ax.set_ylabel(r"$J$ (m$^{-3}$s$^{-1}$)")
-    ax.set_title("(a) nucleation rates"); ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
-
-    # (b) number densities
-    ax = fig.add_subplot(2, 3, 2)
+        a1.loglog(t[1:], np.maximum(I["rates_t"][nm][1:], 1e-300), color=col, lw=1.8, label=nm)
+    a1.set_xlabel("time (s)"); a1.set_ylabel(r"$J$ (m$^{-3}$s$^{-1}$)")
+    a1.set_title("(a) nucleation rates"); a1.legend(fontsize=9); a1.grid(alpha=0.3, which="both")
     for nm, col in [("N_d", "#1f77b4"), ("N_com", "#d62728"), ("N_c", "#2ca02c")]:
-        ax.loglog(t[1:], np.maximum(I["dens_t"][nm][1:], 1e-300), color=col, lw=1.8, label=nm)
-    ax.set_xlabel("time (s)"); ax.set_ylabel(r"$N$ (m$^{-3}$)")
-    ax.set_title("(b) cumulative number density"); ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
+        a2.loglog(t[1:], np.maximum(I["dens_t"][nm][1:], 1e-300), color=col, lw=1.8, label=nm)
+    a2.set_xlabel("time (s)"); a2.set_ylabel(r"$N$ (m$^{-3}$)")
+    a2.set_title("(b) cumulative number density"); a2.legend(fontsize=9); a2.grid(alpha=0.3, which="both")
+    fig.suptitle(f"{element}  (T = {I['params'].temperature_K:.0f} K)", fontsize=12)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    return fig
 
-    # (c) work-of-formation surface
-    ax = fig.add_subplot(2, 3, 3)
-    Wg = mc.flat_to_triangular_grid(w, pairs, max_size)
-    im = ax.imshow(Wg, origin="lower", aspect="auto", cmap="viridis",
-                   extent=[1, max_size, 1, max_size], vmin=np.nanmin(Wg),
-                   vmax=np.nanpercentile(Wg, 99))
-    ax.plot(crit["i_star"], 1, "rx", ms=8); ax.plot(crit["i_co_star"], crit["i_co_star"], "wx", ms=8)
-    ax.set_xlabel("i (metastable size)"); ax.set_ylabel("n (crystal size)")
-    ax.set_title(r"(c) work surface $w_{i,n}/k_BT$"); fig.colorbar(im, ax=ax, fraction=0.046)
 
-    # (d) final concentration map
-    ax = fig.add_subplot(2, 3, 4)
-    Cg = mc.flat_to_triangular_grid(I["log10c_final"], pairs, max_size)
-    im = ax.imshow(Cg, origin="lower", aspect="auto", cmap="magma",
-                   extent=[1, max_size, 1, max_size],
-                   vmin=np.nanpercentile(Cg, 5), vmax=np.nanmax(Cg))
-    ax.set_xlabel("i"); ax.set_ylabel("n")
-    ax.set_title(r"(d) $\log_{10} c(i,n)$ at $t_{end}$"); fig.colorbar(im, ax=ax, fraction=0.046)
+def plot_work_surface(I, element="", i_max=None, n_max=80):
+    p = I["params"]; s_cm = p.s_cm; g_mo = p.gamma_mo; g_cm = p.gamma_cm
+    s_mo = I["s_co"] - s_cm; crit = I["crit"]
+    i_max = i_max or p.max_size
+    iv = np.linspace(1, i_max, 250); nv = np.linspace(1, n_max, 250)
+    II, NN = np.meshgrid(iv, nv)
+    W = -s_mo * II + g_mo * II ** (2 / 3) - s_cm * NN + g_cm * NN ** (2 / 3)
 
-    # (e) crystal-size marginal at several times
-    ax = fig.add_subplot(2, 3, 5)
-    idxs = np.unique(np.linspace(1, len(t) - 1, 5).astype(int))
-    nmax = min(max_size, max(40, 2 * crit["n_star"]))
-    nn = np.arange(nmax + 1)
-    for j in idxs:
-        c = mc.restore_actual_concentration(y[:, j], w, c1, sco, params)
-        m = _crystal_marginal(c, pairs, max_size)[: nmax + 1]
-        ax.semilogy(nn, np.maximum(m, 1e-300), lw=1.4, label=f"t={t[j]:.1e}s")
-    ax.axvline(crit["n_star"], color="k", ls=":", lw=1, label=f"n*={crit['n_star']}")
-    ax.set_xlabel("crystal size n"); ax.set_ylabel(r"$\sum_i c(i,n)$ (m$^{-3}$)")
-    ax.set_title("(e) crystal-size marginal"); ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
-    ax.set_ylim(bottom=max(1e-10, np.nanmin([1e10])))
+    fig, ax = plt.subplots(figsize=(11, 9))
+    ax.set_xlim(iv.min(), iv.max()); ax.set_ylim(nv.min(), nv.max())
+    cf = ax.contourf(iv, nv, W, levels=120, alpha=0.80, cmap="viridis", zorder=1)
+    lvl = np.linspace(W.min(), W.max(), 14)
+    ax.contour(iv, nv, W, levels=lvl, linewidths=3.0, colors="k", alpha=0.45, zorder=25)
+    cs = ax.contour(iv, nv, W, levels=lvl, linewidths=1.6, cmap="viridis", zorder=40)
+    labs = ax.clabel(cs, cs.levels, inline=True, fontsize=9, fmt=lambda v: f"{v:.0f}",
+                     inline_spacing=4, colors="k")
+    for tl in labs:
+        tl.set_path_effects([pe.withStroke(linewidth=2.0, foreground="white", alpha=0.9)])
+    d0 = max(iv.min(), nv.min()); d1 = min(iv.max(), nv.max())
+    xd = np.linspace(d0, d1, 400)
+    ax.plot(xd, xd, lw=2.4, color="black", label="$n = i$", zorder=1500)
+    ax.scatter([crit["i_star"]], [crit["n_star"]], marker="*", s=170, color="#1f77b4",
+               edgecolor="k", lw=0.6, zorder=3000, label="$i^{*},\\,n^{*}$")
+    ax.scatter([crit["i_co_star"]], [crit["i_co_star"]], marker="s", s=90, color="#ff7f0e",
+               edgecolor="k", lw=0.6, zorder=3000, label="$i_{co}^{*}$")
+    ax.axvline(crit["i_star"], ls="--", lw=1.8, color="black", zorder=1500)
+    ax.axhline(crit["n_star"], ls="--", lw=1.8, color="black", zorder=1500)
+    ax.set_xlabel("i  (metastable cluster size)", fontsize=13, fontweight="bold")
+    ax.set_ylabel("n  (crystal cluster size)", fontsize=13, fontweight="bold")
+    ax.set_title(f"Nucleation work surface — {element}", fontsize=14, fontweight="bold")
+    leg = ax.legend(frameon=True, facecolor="white", edgecolor="0.8", framealpha=1.0, fontsize=11)
+    leg.set_zorder(4000)
+    ax.grid(True, ls="--", alpha=0.4)
+    fig.colorbar(cf, ax=ax, label=r"nucleation work  $w_{i,n}/k_BT$")
+    fig.tight_layout()
+    return fig
 
-    # (f) population centroid trajectory
-    ax = fig.add_subplot(2, 3, 6)
-    ax.imshow(Wg, origin="lower", aspect="auto", cmap="Greys",
-              extent=[1, max_size, 1, max_size], alpha=0.5,
-              vmin=np.nanmin(Wg), vmax=np.nanpercentile(Wg, 95))
-    sc = ax.scatter(I["cen_i"], I["cen_n"], c=np.log10(np.maximum(t, 1e-13)),
-                    cmap="plasma", s=18, zorder=5)
-    ax.plot(crit["i_star"], 1, "rx", ms=8)
-    ax.set_xlabel("i"); ax.set_ylabel("n")
-    ax.set_title("(f) population centroid path")
-    cb = fig.colorbar(sc, ax=ax, fraction=0.046); cb.set_label(r"$\log_{10} t$")
-    lim = min(max_size, max(40, 2 * crit["n_star"]))
-    ax.set_xlim(1, lim); ax.set_ylim(1, lim)
 
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
+def plot_population_histograms(I, t_target=5e-6, element="", size_max=40):
+    t = I["time_s"]; j = int(np.argmin(np.abs(t - t_target)))
+    c = mc.restore_actual_concentration(I["y"][:, j], I["w"], I["c1"], I["s_co"], I["params"])
+    M = I["params"].max_size
+    Ni = _marg_i(c, I["pairs"], M); Nn = _marg_n(c, I["pairs"], M)
+    s = np.arange(1, size_max + 1)
+    lNi = np.log10(np.maximum(Ni[1:size_max + 1], 1e-300))
+    lNn = np.log10(np.maximum(Nn[1:size_max + 1], 1e-300))
+    fig, ax = plt.subplots(figsize=(11, 6))
+    ax.bar(s, lNi, width=1.0, align="center", color="#9ecae1", alpha=0.65, edgecolor="#3182bd",
+           lw=0.4, label=r"metastable-size population $N_i=\sum_n c(i,n)$")
+    ax.bar(s, lNn, width=1.0, align="center", color="#fcbba1", alpha=0.65, edgecolor="#de2d26",
+           lw=0.4, label=r"crystal-size population $N_n=\sum_i c(i,n)$")
+    tt = t[j]; unit = f"{tt*1e6:.1f} \u03bcs" if tt < 1e-3 else f"{tt*1e3:.1f} ms"
+    ax.set_xlabel("cluster size: metastable $i$ and crystal $n$", fontsize=12)
+    ax.set_ylabel(r"$\log_{10}$ cluster population  [m$^{-3}$]", fontsize=12)
+    ax.set_title(f"Overlaid cluster population histograms at t = {unit}", fontsize=13)
+    ax.set_xlim(0.5, size_max + 0.5); ax.set_ylim(bottom=0)
+    ax.legend(fontsize=10, loc="upper right")
+    fig.tight_layout()
+    return fig
+
+
+def plot_crystal_marginal_timeseries(I, element="", n_curves=6):
+    t = I["time_s"]; M = I["params"].max_size; crit = I["crit"]
+    n_plot = max(30, M - 4)
+    idx = np.unique(np.geomspace(1, len(t) - 1, n_curves).astype(int))
+    times = t[idx]
+    norm = LogNorm(vmin=times.min(), vmax=times.max()); cmap = cm.plasma
+    nn = np.arange(1, n_plot)
+    fig, ax = plt.subplots(figsize=(11, 7))
+    for j in idx:
+        c = mc.restore_actual_concentration(I["y"][:, j], I["w"], I["c1"], I["s_co"], I["params"])
+        m = _marg_n(c, I["pairs"], M)[1:n_plot]
+        ax.semilogy(nn, np.maximum(m, 1e-300), lw=2.0, color=cmap(norm(t[j])))
+    ax.axvline(crit["n_star"], color="#2ca02c", ls="--", lw=1.6, label=f"$n^*={crit['n_star']}$")
+    ax.set_xlabel("crystal cluster size $n$", fontsize=12)
+    ax.set_ylabel(r"crystal-size marginal density $\sum_i c(i,n,t)$  [m$^{-3}$]", fontsize=12)
+    ax.set_title("Time-dependent crystal cluster-size distribution", fontsize=13)
+    ax.set_ylim(1e-210, 1e34); ax.grid(True, ls="--", alpha=0.4)
+    ax.legend(fontsize=10, loc="lower left")
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
+    fig.colorbar(sm, ax=ax, label="time (s)")
+    fig.tight_layout()
     return fig
 
 
 def plot_noniso(B, element=""):
     has_stat = "J_d_stat" in B
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.semilogy(B["t"] * 1e3, np.maximum(B["J_d"], 1e-300), "-", color="#1f77b4", lw=2,
-                label=r"$J_d$ (master eq.)")
-    ax.semilogy(B["t"] * 1e3, np.maximum(B["J_com"], 1e-300), "-", color="#d62728", lw=2,
-                label=r"$J_{com}$ (master eq.)")
-    ax.semilogy(B["t"] * 1e3, np.maximum(B["J_c"], 1e-300), "-", color="#2ca02c", lw=1.5,
-                label=r"$J_c$ (master eq.)")
+    ax.semilogy(B["t"] * 1e3, np.maximum(B["J_d"], 1e-300), "-", color="#1f77b4", lw=2, label=r"$J_d$ (master eq.)")
+    ax.semilogy(B["t"] * 1e3, np.maximum(B["J_com"], 1e-300), "-", color="#d62728", lw=2, label=r"$J_{com}$ (master eq.)")
+    ax.semilogy(B["t"] * 1e3, np.maximum(B["J_c"], 1e-300), "-", color="#2ca02c", lw=1.5, label=r"$J_c$ (master eq.)")
     if has_stat:
-        ax.semilogy(B["t"] * 1e3, np.maximum(B["J_d_stat"], 1e-300), "--", color="#1f77b4",
-                    lw=1.3, alpha=0.7, label=r"$J_d$ instantaneous stationary")
-        ax.semilogy(B["t"] * 1e3, np.maximum(B["J_com_stat"], 1e-300), "--", color="#d62728",
-                    lw=1.3, alpha=0.7, label=r"$J_{com}$ instantaneous stationary")
+        ax.semilogy(B["t"] * 1e3, np.maximum(B["J_d_stat"], 1e-300), "--", color="#1f77b4", lw=1.3, alpha=0.7, label=r"$J_d$ instantaneous stationary")
+        ax.semilogy(B["t"] * 1e3, np.maximum(B["J_com_stat"], 1e-300), "--", color="#d62728", lw=1.3, alpha=0.7, label=r"$J_{com}$ instantaneous stationary")
     ax.set_xlabel("time (ms)"); ax.set_ylabel(r"nucleation rate (m$^{-3}$s$^{-1}$)")
-    ax.set_title(f"Non-isothermal quench — {element}\n"
-                 f"{B['T'][0]:.0f} K $\\to$ {B['T'][-1]:.0f} K over {B['t'][-1]*1e3:.3g} ms")
+    ax.set_title(f"Non-isothermal quench — {element}\n{B['T'][0]:.0f} K $\\to$ {B['T'][-1]:.0f} K over {B['t'][-1]*1e3:.3g} ms")
     ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8, loc="best")
     axT = ax.twinx()
     axT.plot(B["t"] * 1e3, B["T"], "--", color="gray", lw=1.4, alpha=0.7)
