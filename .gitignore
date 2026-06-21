@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 *.pyo
 *.pyd
@@ -19,6 +20,7 @@ Thumbs.db
 
 # Public-repo exclusions
 *.pdf
+.streamlit/secrets.toml
 
 # Local generated data artifacts
 *.pkl

@@ -1,0 +1,131 @@
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import streamlit as st
+import app_logic as L
+
+st.set_page_config(page_title="Two-Step Nucleation Calculator", layout="wide")
+
+st.title("Two-Step Nucleation Calculator — unary metals")
+st.markdown(
+    "Compute **two-step nucleation** (parent → metastable → crystal) for any single-element metal. "
+    "Enter physical parameters; the app nondimensionalizes them, fits the temperature dependence, and "
+    "runs a Turnbull–Fisher master equation for the isothermal nucleation rates, the cluster population "
+    "distribution, and an optional non-isothermal quench. The defaults reproduce a validated Fe baseline "
+    "(J_d ≈ 4.31×10³⁵, J_com ≈ 5.27×10³¹, J_c ≈ 1.97×10¹⁶ m⁻³s⁻¹)."
+)
+
+with st.expander("What the inputs mean (units)", expanded=False):
+    st.markdown(
+        "- **dmu_mo / dmu_cm** — chemical-potential drop per atom [eV]: parent→metastable, "
+        "metastable→crystal (parent→crystal is their sum).\n"
+        "- **sigma_mo / sigma_cm / sigma_co** — interface energies [J/m²]: M\\|O, C\\|M, C\\|O.\n"
+        "- **D_f / D_g / D_k** — diffusion coefficients [m²/s]: attachment to the metastable phase, "
+        "in-cluster M→C conversion, direct crystal attachment (each Arrhenius-fitted vs T).\n"
+        "- **Atomic volume** [Å³/atom], **jump lengths** [Å], **max_size** = triangular-grid bound "
+        "(keep ≥ ~5× the largest critical size).\n"
+        "- Give **≥ 2 temperature rows** so a T-dependence can be fitted (linear for 2 rows, quadratic "
+        "for ≥ 3; D uses ln D vs 1/T). The 200 K row in the example is an illustrative placeholder — "
+        "replace it with your own data."
+    )
+
+with st.form("inputs"):
+    st.subheader("1. System")
+    c = st.columns(5)
+    element = c[0].text_input("Element / system", L.DEFAULT_SCALARS["element"])
+    vol = c[1].number_input("Atomic volume (Å³/atom)", value=L.DEFAULT_SCALARS["atomic_volume_A3"],
+                            min_value=0.0, format="%.4f")
+    jf = c[2].number_input("Jump length f (Å)", value=L.DEFAULT_SCALARS["jump_f_A"], min_value=0.0, format="%.4f")
+    jg = c[3].number_input("Jump length g (Å)", value=L.DEFAULT_SCALARS["jump_g_A"], min_value=0.0, format="%.4f")
+    jk = c[4].number_input("Jump length k (Å)", value=L.DEFAULT_SCALARS["jump_k_A"], min_value=0.0, format="%.4f")
+    max_size = int(st.number_input("Grid bound max_size", value=L.DEFAULT_SCALARS["max_size"],
+                                   min_value=30, step=10))
+
+    st.subheader("2. Temperature-dependent parameters")
+    st.caption("dmu in eV/atom · sigma in J/m² · D in m²/s. Add rows for more anchors (≥ 2 needed).")
+    anchors = st.data_editor(L.DEFAULT_ANCHORS, num_rows="dynamic", key="anchors")
+
+    st.subheader("3. Run settings")
+    c2 = st.columns(4)
+    T_iso = c2[0].number_input("Isothermal T (K)", value=160.0, min_value=1.0)
+    do_quench = c2[1].checkbox("Also run a quench", value=True)
+    T_hot = c2[2].number_input("Quench from (K)", value=200.0, min_value=1.0)
+    T_cold = c2[3].number_input("Quench to (K)", value=160.0, min_value=1.0)
+    c3 = st.columns(2)
+    total_time = c3[0].number_input("Quench duration (s)", value=1e-2, min_value=0.0, format="%.4g")
+    n_seg = int(c3[1].number_input("Quench segments (more = slower, finer)", value=15,
+                                   min_value=2, max_value=200, step=1))
+
+    submitted = st.form_submit_button("Run", type="primary")
+
+if not submitted:
+    st.info("Fe defaults are loaded. Edit the parameters above and press **Run**.")
+    st.stop()
+
+# ---- build & validate ----
+scalars = dict(element=element, atomic_volume_A3=vol, jump_f_A=jf, jump_g_A=jg, jump_k_A=jk, max_size=max_size)
+user, df = L.build_user(scalars, anchors)
+errs = L.validate(user, df)
+if errs:
+    for e in errs:
+        st.error(e)
+    st.stop()
+
+# ---- nondimensional summary + grid check ----
+T_list = [T_cold, 0.5 * (T_cold + T_hot), T_hot, T_iso] if do_quench else [T_iso]
+nd = L.nondim_summary(user, T_iso)
+gdf, worst, suggested, adequate = L.grid_check(user, T_list)
+
+st.subheader(f"Parameters at {T_iso:.0f} K (after nondimensionalization)")
+cc = st.columns(3)
+cc[0].metric("s_co", f"{nd['s_co']:.3f}")
+cc[0].metric("s_cm", f"{nd['s_cm']:.3f}")
+cc[0].metric("s_mo", f"{nd['s_mo']:.3f}")
+cc[1].metric("γ_mo", f"{nd['gamma_mo']:.2f}")
+cc[1].metric("γ_cm", f"{nd['gamma_cm']:.2f}")
+cc[1].metric("γ_co", f"{nd['gamma_co']:.2f}")
+cc[2].metric("Q(D_f) eV", f"{nd['Q_Df_eV']:.3f}")
+cc[2].metric("Q(D_g) eV", f"{nd['Q_Dg_eV']:.3f}")
+cc[2].metric("Q(D_k) eV", f"{nd['Q_Dk_eV']:.3f}")
+
+st.markdown("**Grid-bound check** — critical sizes across the temperature range:")
+st.dataframe(gdf, hide_index=True)
+if adequate:
+    st.success(f"max_size = {user['max_size']} is adequate (≥ 3× the largest critical size, {worst}).")
+else:
+    st.warning(f"Largest critical size is {worst}; raise max_size to ≥ {suggested} for a safe margin.")
+
+# ---- isothermal ----
+st.subheader(f"Isothermal results at {T_iso:.0f} K")
+with st.spinner("Solving the master equation (isothermal)…"):
+    rates, crit, fig_iso = L.run_isothermal(user, T_iso)
+m = st.columns(3)
+m[0].metric("J_d  (amorphous)", f"{rates['J_d']:.3e}")
+m[1].metric("J_com  (crystal in amorphous, 2S)", f"{rates['J_com']:.3e}")
+m[2].metric("J_c  (direct crystal)", f"{rates['J_c']:.3e}")
+st.caption(f"rates in m⁻³ s⁻¹ · critical sizes  i*={crit['i_star']},  n*={crit['n_star']},  i_co*={crit['i_co_star']}")
+st.pyplot(fig_iso)
+plt.close(fig_iso)
+
+# ---- non-isothermal ----
+if do_quench:
+    st.subheader(f"Non-isothermal quench  {T_hot:.0f} K → {T_cold:.0f} K")
+    with st.spinner(f"Stepping the quench ({n_seg} segments)… this can take ~30–60 s"):
+        qinfo, fig_q = L.run_quench(user, T_hot, T_cold, total_time, n_seg)
+    if qinfo["n_fail"]:
+        st.error(f"{qinfo['n_fail']} segment(s) failed to converge — try fewer segments or a larger max_size.")
+    else:
+        st.success(f"All {n_seg} segments converged ({qinfo['n_points']} output points).")
+    st.pyplot(fig_q)
+    plt.close(fig_q)
+    st.caption(
+        "Solid = master-equation rate (captures transient/incubation lag); dashed = instantaneous "
+        "stationary rate at each temperature. A fast quench makes them diverge."
+    )
+
+st.divider()
+st.caption(
+    "Assumptions: monomer pinned to equilibrium at each T (no depletion); quench atol tuned for J_d/J_com "
+    "(J_c needs tighter tolerance). Fits are only as good as the anchor points — use ~5–6 temperatures "
+    "spanning the quench for real work."
+)
