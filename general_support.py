@@ -200,6 +200,7 @@ def noniso_run(params_at, T_hot, T_cold, total_time_s, n_seg, max_size,
     PAIR, PAIRS = mc.triangular_index_maps(max_size)
     TOPO = mc.build_state_topology(PAIR, PAIRS, max_size)
     NST = len(PAIRS)
+    PAIRS_arr = np.asarray(PAIRS, dtype=int)
     if atol is None:
         atol = float(params_at(T_hot)[0].c1_base) * 1e-14  # ~14 orders below monomer density
 
@@ -209,7 +210,7 @@ def noniso_run(params_at, T_hot, T_cold, total_time_s, n_seg, max_size,
     c_unknown = np.zeros(len(op0["unk"]), float)
     unk_ref, anchor_ref = op0["unk"], op0["anchor"]
 
-    rec = {k: [] for k in ("t", "T", "J_d", "J_com", "J_c", "N_tot")}
+    rec = {k: [] for k in ("t", "T", "J_d", "J_com", "J_c", "N_tot", "N_i", "N_n", "n_star")}
     if compare_stationary:
         rec["J_d_stat"] = []; rec["J_com_stat"] = []
         stat_cache = {}
@@ -234,12 +235,20 @@ def noniso_run(params_at, T_hot, T_cold, total_time_s, n_seg, max_size,
                                                method="stationary", closure_set=cc)
             rr = mc.final_rates_from_solve_output(so, sco, p)
             stat_cache[T_seg] = (rr["J_d"], rr["J_com"])
+        crit_seg = mc.critical_sizes(op["s_co"], op["params"])
         for j in range(sol.y.shape[1]):
             cj = sol.y[:, j]
             rd = _rates_from_c(cj, op, PAIR, NST)
+            # full actual concentration (monomer pinned at c1) -> cluster-size marginals
+            c_full = np.zeros(NST)
+            c_full[op["unk"]] = cj
+            c_full[op["anchor"]] = op["c1"]
+            Ni = np.zeros(max_size + 2); np.add.at(Ni, PAIRS_arr[:, 0], c_full)
+            Nn = np.zeros(max_size + 2); np.add.at(Nn, PAIRS_arr[:, 1], c_full)
             rec["t"].append(t_edges[k] + teval[j]); rec["T"].append(T_seg)
             rec["J_d"].append(rd["J_d"]); rec["J_com"].append(rd["J_com"]); rec["J_c"].append(rd["J_c"])
             rec["N_tot"].append(float(np.sum(cj)))
+            rec["N_i"].append(Ni); rec["N_n"].append(Nn); rec["n_star"].append(int(crit_seg["n_star"]))
             if compare_stationary:
                 rec["J_d_stat"].append(stat_cache[T_seg][0]); rec["J_com_stat"].append(stat_cache[T_seg][1])
         c_unknown = sol.y[:, -1]

@@ -7,7 +7,9 @@ temperature dependence, and runs a Turnbull–Fisher composite-cluster master eq
 - isothermal nucleation rates `J_d`, `J_com`, `J_c` and induction times,
 - the cluster population distribution: the nucleation work surface, overlaid metastable-size and
   crystal-size population histograms, and the time-dependent crystal cluster-size distribution,
-- an optional **non-isothermal quench** `T(t)` that captures transient/incubation lag.
+- an optional **non-isothermal quench** `T(t)`: the same cluster-population figures (population
+  histograms and the temperature-resolved crystal cluster-size distribution) plus nucleation
+  rates that capture transient/incubation lag.
 
 The defaults reproduce a validated Fe baseline
 (`J_d ≈ 4.31×10³⁵`, `J_com ≈ 5.27×10³¹`, `J_c ≈ 1.97×10¹⁶ m⁻³s⁻¹`).

@@ -127,5 +127,14 @@ def run_quench(user, T_hot, T_cold, total_time_s, n_seg):
     B = gs.noniso_run(params_at, float(T_hot), float(T_cold), total_time_s=float(total_time_s),
                       n_seg=int(n_seg), max_size=user["max_size"], sub_points=3,
                       compare_stationary=True, verbose=False)
-    fig = gp.plot_noniso(B, element=user["element"])
-    return {"n_fail": int(B["n_fail"]), "n_points": int(len(B["t"]))}, fig
+    info = {"n_fail": int(B["n_fail"]), "n_points": int(len(B["t"]))}
+    return info, B
+
+
+def figures_quench(B, element, hist_time_s=5e-3):
+    """Cluster-population figures for the quench (same style as isothermal) + rate plot."""
+    return {
+        "hist": gp.plot_quench_population_histograms(B, t_target=float(hist_time_s), element=element),
+        "marginal": gp.plot_quench_crystal_marginal(B, element=element),
+        "rate": gp.plot_noniso(B, element=element),
+    }

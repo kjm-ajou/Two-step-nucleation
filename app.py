@@ -46,15 +46,18 @@ with st.form("inputs"):
     anchors = st.data_editor(L.DEFAULT_ANCHORS, num_rows="dynamic", key="anchors")
 
     st.subheader("3. Run settings")
-    c2 = st.columns(3)
-    T_iso = c2[0].number_input("Isothermal T (K)", value=160.0, min_value=1.0)
-    hist_time = c2[1].number_input("Population-histogram time (s)", value=5e-6, min_value=0.0, format="%.2e")
-    do_quench = c2[2].checkbox("Also run a quench", value=True)
-    c3 = st.columns(4)
-    T_hot = c3[0].number_input("Quench from (K)", value=200.0, min_value=1.0)
-    T_cold = c3[1].number_input("Quench to (K)", value=160.0, min_value=1.0)
-    total_time = c3[2].number_input("Quench duration (s)", value=1e-2, min_value=0.0, format="%.4g")
-    n_seg = int(c3[3].number_input("Quench segments", value=15, min_value=2, max_value=200, step=1))
+    st.markdown("**Isothermal**")
+    ca = st.columns(2)
+    T_iso = ca[0].number_input("Isothermal T (K)", value=160.0, min_value=1.0)
+    hist_time = ca[1].number_input("Population-histogram time (s)", value=5e-6, min_value=0.0, format="%.2e")
+    st.markdown("**Quench**")
+    do_quench = st.checkbox("Run a quench (cluster population + rates)", value=True)
+    cb = st.columns(5)
+    T_hot = cb[0].number_input("From (K)", value=200.0, min_value=1.0)
+    T_cold = cb[1].number_input("To (K)", value=160.0, min_value=1.0)
+    total_time = cb[2].number_input("Duration (s)", value=1e-2, min_value=0.0, format="%.4g")
+    n_seg = int(cb[3].number_input("Segments", value=15, min_value=2, max_value=200, step=1))
+    quench_hist_time = cb[4].number_input("Snapshot time (s)", value=5e-3, min_value=0.0, format="%.2e")
 
     submitted = st.form_submit_button("Run", type="primary")
 
@@ -118,17 +121,18 @@ st.pyplot(figs["marginal"]); plt.close(figs["marginal"])
 if do_quench:
     st.subheader(f"Non-isothermal quench  {T_hot:.0f} K → {T_cold:.0f} K")
     with st.spinner(f"Stepping the quench ({n_seg} segments)… this can take ~30–60 s"):
-        qinfo, fig_q = L.run_quench(user, T_hot, T_cold, total_time, n_seg)
+        qinfo, B = L.run_quench(user, T_hot, T_cold, total_time, n_seg)
     if qinfo["n_fail"]:
         st.error(f"{qinfo['n_fail']} segment(s) failed to converge — try fewer segments or a larger max_size.")
     else:
         st.success(f"All {n_seg} segments converged ({qinfo['n_points']} output points).")
-    st.pyplot(fig_q)
-    plt.close(fig_q)
-    st.caption(
-        "Solid = master-equation rate (captures transient/incubation lag); dashed = instantaneous "
-        "stationary rate at each temperature. A fast quench makes them diverge."
-    )
+    figs_q = L.figures_quench(B, user["element"], hist_time_s=quench_hist_time)
+    st.markdown("**Cluster population during the quench** — metastable-size ($N_i$) vs crystal-size ($N_n$) at the chosen instant.")
+    st.pyplot(figs_q["hist"]); plt.close(figs_q["hist"])
+    st.markdown("**Crystal cluster-size distribution as it cools** — each curve is one instant, coloured by temperature; $n^*$ shifts with T.")
+    st.pyplot(figs_q["marginal"]); plt.close(figs_q["marginal"])
+    st.markdown("**Nucleation rates** — solid = master equation (captures transient/incubation lag); dashed = instantaneous stationary. A fast quench makes them diverge.")
+    st.pyplot(figs_q["rate"]); plt.close(figs_q["rate"])
 
 st.divider()
 st.caption(

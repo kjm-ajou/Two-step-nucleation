@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.patheffects as pe
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
 import model_core as mc  # in the notebook this is rebound to sys.modules['__main__']
 
 
@@ -140,5 +140,53 @@ def plot_noniso(B, element=""):
     axT = ax.twinx()
     axT.plot(B["t"] * 1e3, B["T"], "--", color="gray", lw=1.4, alpha=0.7)
     axT.set_ylabel("T (K)", color="gray"); axT.tick_params(axis="y", colors="gray")
+    fig.tight_layout()
+    return fig
+
+
+def plot_quench_population_histograms(B, t_target=5e-3, element="", size_max=40):
+    """Overlaid metastable/crystal size populations at one instant during the quench."""
+    t = B["t"]; j = int(np.argmin(np.abs(t - t_target)))
+    Ni = B["N_i"][j]; Nn = B["N_n"][j]; Tj = B["T"][j]
+    s = np.arange(1, size_max + 1)
+    lNi = np.log10(np.maximum(Ni[1:size_max + 1], 1e-300))
+    lNn = np.log10(np.maximum(Nn[1:size_max + 1], 1e-300))
+    fig, ax = plt.subplots(figsize=(11, 6))
+    ax.bar(s, lNi, width=1.0, align="center", color="#9ecae1", alpha=0.65, edgecolor="#3182bd",
+           lw=0.4, label=r"metastable-size population $N_i=\sum_n c(i,n)$")
+    ax.bar(s, lNn, width=1.0, align="center", color="#fcbba1", alpha=0.65, edgecolor="#de2d26",
+           lw=0.4, label=r"crystal-size population $N_n=\sum_i c(i,n)$")
+    ax.set_xlabel("cluster size: metastable $i$ and crystal $n$", fontsize=12)
+    ax.set_ylabel(r"$\log_{10}$ cluster population  [m$^{-3}$]", fontsize=12)
+    ax.set_title(f"Cluster population during quench — t = {t[j]*1e3:.2f} ms  (T = {Tj:.0f} K)", fontsize=13)
+    ax.set_xlim(0.5, size_max + 0.5); ax.set_ylim(bottom=0)
+    ax.legend(fontsize=10, loc="upper right")
+    fig.tight_layout()
+    return fig
+
+
+def plot_quench_crystal_marginal(B, element="", n_curves=8):
+    """Crystal-size marginal vs n at several quench instants, coloured by temperature."""
+    t = B["t"]; T = B["T"]; Nn = np.asarray(B["N_n"])
+    M = Nn.shape[1] - 2
+    n_plot = max(30, M - 4)
+    npts = len(t)
+    idx = np.unique(np.linspace(0, npts - 1, n_curves).astype(int))
+    norm = Normalize(vmin=float(T.min()), vmax=float(T.max())); cmap = cm.coolwarm
+    nn = np.arange(1, n_plot)
+    fig, ax = plt.subplots(figsize=(11, 7))
+    for j in idx:
+        ax.semilogy(nn, np.maximum(Nn[j][1:n_plot], 1e-300), lw=2.0, color=cmap(norm(T[j])))
+    ns_hot, ns_cold = int(B["n_star"][0]), int(B["n_star"][-1])
+    ax.axvline(ns_cold, color="#1f77b4", ls="--", lw=1.4, label=f"$n^*$ at {T[-1]:.0f} K = {ns_cold}")
+    if ns_hot != ns_cold:
+        ax.axvline(ns_hot, color="#b2182b", ls="--", lw=1.4, label=f"$n^*$ at {T[0]:.0f} K = {ns_hot}")
+    ax.set_xlabel("crystal cluster size $n$", fontsize=12)
+    ax.set_ylabel(r"crystal-size marginal density $\sum_i c(i,n,t)$  [m$^{-3}$]", fontsize=12)
+    ax.set_title(f"Crystal cluster-size distribution during the quench — {element}", fontsize=13)
+    ax.set_ylim(bottom=1e-40); ax.grid(True, ls="--", alpha=0.4)
+    ax.legend(fontsize=10, loc="upper right")
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
+    cb = fig.colorbar(sm, ax=ax); cb.set_label("temperature (K)")
     fig.tight_layout()
     return fig
