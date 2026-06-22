@@ -98,4 +98,4 @@ Conceptual overview of the coupling: [`docs/theoretical_background.md`](docs/the
 
 ## License
 
-(Choose a license — e.g. MIT — or remove this section.)
+
